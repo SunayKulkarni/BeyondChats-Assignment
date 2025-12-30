@@ -3,14 +3,18 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "scrape": "node -r dotenv/config scraper/beyondChats.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.13.2",
-    "cheerio": "^1.1.2"
+    "cheerio": "^1.1.2",
+    "dotenv": "^17.2.3",
+    "mongoose": "^9.0.2"
   }
 }

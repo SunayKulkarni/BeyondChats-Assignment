@@ -1,5 +1,8 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import Article from '../models/articleModel.js';
+import mongoose, { connect } from 'mongoose';
+import { connectDB } from '../db/db.js';
 
 async function scrapePage(url) {
 
@@ -15,6 +18,8 @@ async function scrapePage(url) {
 
     const dateText = $(el).find("time.ct-meta-element-date").first().text().trim();
 
+    const content = $(el).find("div.entry-content").first().text().trim();
+
     if (title && link && dateText) {
 
       articles.push({
@@ -22,7 +27,8 @@ async function scrapePage(url) {
         url: link.startsWith("http")
           ? link
           : `https://beyondchats.com${link}`,
-        publishedAt: new Date(dateText)
+        publishedAt: new Date(dateText),
+        content,
       });
 
     }
@@ -30,6 +36,36 @@ async function scrapePage(url) {
     return articles;
 }
 
+
+
+async function scrapeArticleContent(url){
+
+  const response = await axios.get(url);
+  
+  const $ = cheerio.load(response.data);
+
+  const title = $("h1").text().trim();
+
+  const content  = $("div.elementor-widget-theme-post-content").text().replace(/\s+/g, ' ').trim();
+
+  return { title, content };
+      
+}
+
+
+
+async function saveArticle(articles){
+    try{
+      await Article.updateOne(
+        { url: articles.url },
+        { $set: articles },
+        { upsert: true }
+      );
+      console.log(`Saved/Updated article: ${articles.title}`);
+    } catch (error) {
+      console.error("Error saving article:", error);
+    }
+}
 
 
 async function main() {
@@ -59,6 +95,32 @@ async function main() {
     console.log("Published:", a.publishedAt.toDateString());
     console.log("-----------");
   });
+
+
+  const article  = await scrapeArticleContent(oldestFive[0].url);
+  
+  console.log("\nContent of the oldest article:\n");
+  console.log("Title:", article.title);
+  console.log("Content:", article.content.substring(0, 500) + "...");
+
+
+  for(const articles of oldestFive){
+    const fullArticle = await scrapeArticleContent(articles.url);
+    const articleToSave = {
+      title: fullArticle.title,
+      url: articles.url,
+      publishedAt: articles.publishedAt,
+      content: fullArticle.content,
+    };
+    await saveArticle(articleToSave);
+  }
 }
 
-main();
+
+async function run() {
+  await connectDB();
+  await main();
+  process.exit(0);
+}
+
+run();
